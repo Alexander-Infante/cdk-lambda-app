@@ -1,0 +1,68 @@
+name: Deploy Todo App
+
+on:
+  push:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '18'
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  deploy-dev:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm test
+      
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Deploy to Dev
+        run: |
+          npx cdk bootstrap
+          npx cdk deploy --context stage=dev --require-approval never
+        env:
+          AIRTABLE_API_KEY: ${{ secrets.AIRTABLE_API_KEY }}
+          AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+          AIRTABLE_TABLE_ID: ${{ secrets.AIRTABLE_TABLE_ID }}
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm test
+      
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Deploy to Production
+        run: |
+          npx cdk bootstrap
+          npx cdk deploy --context stage=prod --require-approval never
+        env:
+          AIRTABLE_API_KEY: ${{ secrets.AIRTABLE_API_KEY }}
+          AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+          AIRTABLE_TABLE_ID: ${{ secrets.AIRTABLE_TABLE_ID }}

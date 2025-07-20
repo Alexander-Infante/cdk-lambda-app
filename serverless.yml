@@ -1,0 +1,96 @@
+service: todo-app
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'local'}
+  environment:
+    TODOS_TABLE_NAME: ${self:service}-${self:provider.stage}-todos
+    STAGE: ${self:provider.stage}
+    # Local development - use .env file or hardcode for testing
+    AIRTABLE_API_KEY: ${env:AIRTABLE_API_KEY, ''}
+    AIRTABLE_BASE_ID: ${env:AIRTABLE_BASE_ID, ''}
+    AIRTABLE_TABLE_ID: ${env:AIRTABLE_TABLE_ID, ''}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:*
+          Resource:
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE_NAME}"
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE_NAME}/index/*"
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+  - serverless-dynamodb
+
+functions:
+  createTodo:
+    handler: lib/lambdas/createTodo/index.handler
+    events:
+      - http:
+          path: /v1/todo
+          method: post
+          cors: true
+
+  getTodos:
+    handler: lib/lambdas/getTodos/index.handler
+    events:
+      - http:
+          path: /v1/todos
+          method: get
+          cors: true
+
+  airtableWebhook:
+    handler: lib/lambdas/airtableWebhook/index.handler
+    events:
+      - http:
+          path: /v1/webhook
+          method: post
+          cors: true
+
+resources:
+  Resources:
+    TodosTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.TODOS_TABLE_NAME}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: airtableRecordId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: airtable-record-index
+            KeySchema:
+              - AttributeName: airtableRecordId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+custom:
+  serverless-dynamodb:
+    start:
+      port: 8000
+      inMemory: true
+      migrate: true
+      seed: true
+    seed:
+      domain:
+        sources:
+          - table: ${self:provider.environment.TODOS_TABLE_NAME}
+            sources: [./test-data/todos.json]
+    stages:
+      - local
+  serverless-offline:
+    httpPort: 3000
+    host: 0.0.0.0
+    useChildProcesses: true
