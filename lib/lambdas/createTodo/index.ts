@@ -16,7 +16,6 @@ interface Todo {
   airtableRecordId?: string;
 }
 
-// Type for Airtable API response
 interface AirtableCreateResponse {
   id: string;
   fields: Record<string, any>;
@@ -34,6 +33,16 @@ async function createInAirtable(todo: Todo): Promise<string | null> {
   }
 
   try {
+    const fields: Record<string, any> = {
+      Name: todo.title,
+    };
+
+    if (todo.description) {
+      fields.Description = todo.description;
+    }
+
+    console.log("Sending to Airtable:", fields);
+
     const response = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}`,
       {
@@ -42,22 +51,16 @@ async function createInAirtable(todo: Todo): Promise<string | null> {
           Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          fields: {
-            Name: todo.title,
-            Description: todo.description || "",
-            Status: "To Do",
-          },
-        }),
+        body: JSON.stringify({ fields }),
       }
     );
 
     if (!response.ok) {
-      console.error("Airtable error:", await response.text());
+      const errorText = await response.text();
+      console.error("Airtable error:", errorText);
       return null;
     }
 
-    // Type assertion for the response
     const data = (await response.json()) as AirtableCreateResponse;
     console.log("Created in Airtable:", data.id);
     return data.id;

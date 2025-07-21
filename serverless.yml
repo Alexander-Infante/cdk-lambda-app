@@ -1,6 +1,9 @@
 service: todo-app
 frameworkVersion: '3'
 
+# Load environment variables from .env file
+useDotenv: true
+
 provider:
   name: aws
   runtime: nodejs18.x
@@ -9,9 +12,10 @@ provider:
   environment:
     TODOS_TABLE_NAME: todos-${self:provider.stage}
     STAGE: ${self:provider.stage}
-    AIRTABLE_API_KEY: ${env:AIRTABLE_API_KEY, ''}
-    AIRTABLE_BASE_ID: ${env:AIRTABLE_BASE_ID, ''}
-    AIRTABLE_TABLE_ID: ${env:AIRTABLE_TABLE_ID, ''}
+    # Now these will load from .env file
+    AIRTABLE_API_KEY: ${env:AIRTABLE_API_KEY}
+    AIRTABLE_BASE_ID: ${env:AIRTABLE_BASE_ID}
+    AIRTABLE_TABLE_ID: ${env:AIRTABLE_TABLE_ID}
   iam:
     role:
       statements:
@@ -50,14 +54,6 @@ functions:
           path: /v1/webhook
           method: post
           cors: true
-
-package:
-  # Exclude unnecessary files from deployment packages
-  patterns:
-    - '!node_modules/aws-cdk-lib/**'
-    - '!node_modules/constructs/**'
-    - '!**/*.test.ts'
-    - '!test/**'
 
 custom:
   serverless-offline:
