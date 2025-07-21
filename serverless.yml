@@ -1,7 +1,6 @@
 service: todo-app
 frameworkVersion: '3'
 
-# Load environment variables from .env file
 useDotenv: true
 
 provider:
@@ -12,10 +11,10 @@ provider:
   environment:
     TODOS_TABLE_NAME: todos-${self:provider.stage}
     STAGE: ${self:provider.stage}
-    # Now these will load from .env file
     AIRTABLE_API_KEY: ${env:AIRTABLE_API_KEY}
     AIRTABLE_BASE_ID: ${env:AIRTABLE_BASE_ID}
     AIRTABLE_TABLE_ID: ${env:AIRTABLE_TABLE_ID}
+    API_KEY_SECRET_NAME: todo-app-${self:provider.stage}-api-key
   iam:
     role:
       statements:
@@ -25,12 +24,22 @@ provider:
           Resource:
             - "arn:aws:dynamodb:${self:provider.region}:*:table/todos-${self:provider.stage}"
             - "arn:aws:dynamodb:${self:provider.region}:*:table/todos-${self:provider.stage}/index/*"
+        - Effect: Allow
+          Action:
+            - secretsmanager:GetSecretValue
+          Resource:
+            - "arn:aws:secretsmanager:${self:provider.region}:*:secret:todo-app-${self:provider.stage}-api-key*"
 
 plugins:
   - serverless-plugin-typescript
   - serverless-offline
 
 functions:
+  apiKeyAuthorizer:
+    handler: lib/lambdas/apiKeyAuthorizer/index.handler
+    environment:
+      API_KEY_SECRET_NAME: todo-app-${self:provider.stage}-api-key
+
   createTodo:
     handler: lib/lambdas/createTodo/index.handler
     events:
@@ -38,6 +47,11 @@ functions:
           path: /v1/todo
           method: post
           cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.x-api-key
+            resultTtlInSeconds: 300
 
   getTodos:
     handler: lib/lambdas/getTodos/index.handler
@@ -46,6 +60,11 @@ functions:
           path: /v1/todos
           method: get
           cors: true
+          authorizer:
+            name: apiKeyAuthorizer
+            type: request
+            identitySource: method.request.header.x-api-key
+            resultTtlInSeconds: 300
 
   airtableWebhook:
     handler: lib/lambdas/airtableWebhook/index.handler
@@ -54,9 +73,13 @@ functions:
           path: /v1/webhook
           method: post
           cors: true
+          # No authorizer for webhook
 
 custom:
   serverless-offline:
     httpPort: 3000
     host: 0.0.0.0
     useChildProcesses: true
+    # Add these options for better authorizer support
+    noAuth: false
+    skipCacheInvalidation: false
