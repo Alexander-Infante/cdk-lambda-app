@@ -16,6 +16,13 @@ interface Todo {
   airtableRecordId?: string;
 }
 
+// Type for Airtable API response
+interface AirtableCreateResponse {
+  id: string;
+  fields: Record<string, any>;
+  createdTime: string;
+}
+
 async function createInAirtable(todo: Todo): Promise<string | null> {
   if (
     !process.env.AIRTABLE_API_KEY ||
@@ -50,7 +57,8 @@ async function createInAirtable(todo: Todo): Promise<string | null> {
       return null;
     }
 
-    const data = await response.json();
+    // Type assertion for the response
+    const data = (await response.json()) as AirtableCreateResponse;
     console.log("Created in Airtable:", data.id);
     return data.id;
   } catch (error) {
