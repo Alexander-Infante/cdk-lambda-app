@@ -7,7 +7,6 @@ provider:
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   environment:
-    # Always use the deployed DynamoDB table
     TODOS_TABLE_NAME: todos-${self:provider.stage}
     STAGE: ${self:provider.stage}
     AIRTABLE_API_KEY: ${env:AIRTABLE_API_KEY, ''}
@@ -51,6 +50,14 @@ functions:
           path: /v1/webhook
           method: post
           cors: true
+
+package:
+  # Exclude unnecessary files from deployment packages
+  patterns:
+    - '!node_modules/aws-cdk-lib/**'
+    - '!node_modules/constructs/**'
+    - '!**/*.test.ts'
+    - '!test/**'
 
 custom:
   serverless-offline:
