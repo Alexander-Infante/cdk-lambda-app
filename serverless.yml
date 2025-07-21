@@ -5,10 +5,10 @@ provider:
   name: aws
   runtime: nodejs18.x
   region: ${opt:region, 'us-east-1'}
-  stage: ${opt:stage, 'local'}
+  stage: ${opt:stage, 'dev'}
   environment:
-    # Dynamic table name based on stage
-    TODOS_TABLE_NAME: ${self:custom.tableName.${self:provider.stage}, 'todo-app-local-todos'}
+    # Always use the deployed DynamoDB table
+    TODOS_TABLE_NAME: todos-${self:provider.stage}
     STAGE: ${self:provider.stage}
     AIRTABLE_API_KEY: ${env:AIRTABLE_API_KEY, ''}
     AIRTABLE_BASE_ID: ${env:AIRTABLE_BASE_ID, ''}
@@ -20,8 +20,8 @@ provider:
           Action:
             - dynamodb:*
           Resource:
-            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE_NAME}"
-            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE_NAME}/index/*"
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/todos-${self:provider.stage}"
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/todos-${self:provider.stage}/index/*"
 
 plugins:
   - serverless-plugin-typescript
@@ -52,47 +52,8 @@ functions:
           method: post
           cors: true
 
-# Only create DynamoDB table for local stage
-resources:
-  Resources:
-    TodosTable:
-      Type: AWS::DynamoDB::Table
-      Condition: IsLocalStage
-      Properties:
-        TableName: ${self:provider.environment.TODOS_TABLE_NAME}
-        AttributeDefinitions:
-          - AttributeName: id
-            AttributeType: S
-          - AttributeName: airtableRecordId
-            AttributeType: S
-        KeySchema:
-          - AttributeName: id
-            KeyType: HASH
-        GlobalSecondaryIndexes:
-          - IndexName: airtable-record-index
-            KeySchema:
-              - AttributeName: airtableRecordId
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-        BillingMode: PAY_PER_REQUEST
-  
-  Conditions:
-    IsLocalStage: !Equals 
-      - ${self:provider.stage}
-      - local
-
 custom:
-  # Table names for different stages
-  tableName:
-    local: todo-app-local-todos
-    dev: todos-dev              # Match your CDK deployed table
-    staging: todos-staging      # If you add staging later
-    prod: todos-prod           # If you add prod later
-
   serverless-offline:
     httpPort: 3000
     host: 0.0.0.0
     useChildProcesses: true
-    # Skip DynamoDB Local setup when not in local stage
-    skipCacheInvalidation: true
