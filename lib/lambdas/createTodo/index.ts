@@ -1,19 +1,9 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { v4 as uuidv4 } from 'uuid';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { v4 as uuidv4 } from "uuid";
 
-// Configure DynamoDB client for local development
-const dynamoConfig = process.env.STAGE === 'local' ? {
-  endpoint: 'http://localhost:8000',
-  region: 'localhost',
-  credentials: {
-    accessKeyId: 'MockAccessKeyId',
-    secretAccessKey: 'MockSecretAccessKey',
-  },
-} : {};
-
-const client = new DynamoDBClient(dynamoConfig);
+const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 
 interface Todo {
@@ -22,19 +12,17 @@ interface Todo {
   description?: string;
   completed: boolean;
   createdAt: string;
-  source: 'api' | 'airtable';
+  source: "api" | "airtable";
   airtableRecordId?: string;
 }
 
 async function createInAirtable(todo: Todo): Promise<string | null> {
-  // Skip Airtable in local development unless explicitly configured
-  if (process.env.STAGE === 'local' && !process.env.AIRTABLE_API_KEY) {
-    console.log('Local development: Skipping Airtable integration');
-    return null;
-  }
-
-  if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
-    console.log('Airtable not configured, skipping');
+  if (
+    !process.env.AIRTABLE_API_KEY ||
+    !process.env.AIRTABLE_BASE_ID ||
+    !process.env.AIRTABLE_TABLE_ID
+  ) {
+    console.log("Airtable not configured, skipping");
     return null;
   }
 
@@ -42,50 +30,55 @@ async function createInAirtable(todo: Todo): Promise<string | null> {
     const response = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}`,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${process.env.AIRTABLE_API_KEY}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           fields: {
-            'Name': todo.title,
-            'Description': todo.description || '',
-            'Status': 'To Do',
+            Name: todo.title,
+            Description: todo.description || "",
+            Status: "To Do",
           },
         }),
       }
     );
 
     if (!response.ok) {
-      console.error('Airtable error:', await response.text());
+      console.error("Airtable error:", await response.text());
       return null;
     }
 
     const data = await response.json();
+    console.log("Created in Airtable:", data.id);
     return data.id;
   } catch (error) {
-    console.error('Failed to create in Airtable:', error);
+    console.error("Failed to create in Airtable:", error);
     return null;
   }
 }
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+export const handler = async (
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> => {
   const headers = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+    "Access-Control-Allow-Headers": "Content-Type",
   };
 
   try {
-    const body = JSON.parse(event.body || '{}');
-    
+    console.log("Create Todo request:", JSON.stringify(event.body, null, 2));
+
+    const body = JSON.parse(event.body || "{}");
+
     if (!body.title) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Title is required' }),
+        body: JSON.stringify({ error: "Title is required" }),
       };
     }
 
@@ -95,7 +88,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       description: body.description,
       completed: false,
       createdAt: new Date().toISOString(),
-      source: 'api',
+      source: "api",
     };
 
     // Try to create in Airtable first
@@ -105,27 +98,39 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     // Save to DynamoDB
-    await docClient.send(new PutCommand({
-      TableName: process.env.TODOS_TABLE_NAME,
-      Item: todo,
-    }));
+    await docClient.send(
+      new PutCommand({
+        TableName: process.env.TODOS_TABLE_NAME,
+        Item: todo,
+      })
+    );
 
-    console.log('Created todo:', todo.id, process.env.STAGE === 'local' ? '(local)' : '(aws)');
+    console.log(
+      "Created todo:",
+      todo.id,
+      "in table:",
+      process.env.TODOS_TABLE_NAME
+    );
 
     return {
       statusCode: 201,
       headers,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         todo,
-        environment: process.env.STAGE 
+        message: "Todo created successfully",
+        tableName: process.env.TODOS_TABLE_NAME,
+        stage: process.env.STAGE,
       }),
     };
   } catch (error) {
-    console.error('Error:', error);
+    console.error("Error creating todo:", error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Internal server error' }),
+      body: JSON.stringify({
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : "Unknown error",
+      }),
     };
   }
 };

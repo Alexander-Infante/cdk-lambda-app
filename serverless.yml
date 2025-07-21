@@ -7,9 +7,9 @@ provider:
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'local'}
   environment:
-    TODOS_TABLE_NAME: ${self:service}-${self:provider.stage}-todos
+    # Dynamic table name based on stage
+    TODOS_TABLE_NAME: ${self:custom.tableName.${self:provider.stage}, 'todo-app-local-todos'}
     STAGE: ${self:provider.stage}
-    # Local development - use .env file or hardcode for testing
     AIRTABLE_API_KEY: ${env:AIRTABLE_API_KEY, ''}
     AIRTABLE_BASE_ID: ${env:AIRTABLE_BASE_ID, ''}
     AIRTABLE_TABLE_ID: ${env:AIRTABLE_TABLE_ID, ''}
@@ -26,7 +26,6 @@ provider:
 plugins:
   - serverless-plugin-typescript
   - serverless-offline
-  - serverless-dynamodb
 
 functions:
   createTodo:
@@ -53,10 +52,12 @@ functions:
           method: post
           cors: true
 
+# Only create DynamoDB table for local stage
 resources:
   Resources:
     TodosTable:
       Type: AWS::DynamoDB::Table
+      Condition: IsLocalStage
       Properties:
         TableName: ${self:provider.environment.TODOS_TABLE_NAME}
         AttributeDefinitions:
@@ -75,22 +76,23 @@ resources:
             Projection:
               ProjectionType: ALL
         BillingMode: PAY_PER_REQUEST
+  
+  Conditions:
+    IsLocalStage: !Equals 
+      - ${self:provider.stage}
+      - local
 
 custom:
-  serverless-dynamodb:
-    start:
-      port: 8000
-      inMemory: true
-      migrate: true
-      seed: true
-    seed:
-      domain:
-        sources:
-          - table: ${self:provider.environment.TODOS_TABLE_NAME}
-            sources: [./test-data/todos.json]
-    stages:
-      - local
+  # Table names for different stages
+  tableName:
+    local: todo-app-local-todos
+    dev: todos-dev              # Match your CDK deployed table
+    staging: todos-staging      # If you add staging later
+    prod: todos-prod           # If you add prod later
+
   serverless-offline:
     httpPort: 3000
     host: 0.0.0.0
     useChildProcesses: true
+    # Skip DynamoDB Local setup when not in local stage
+    skipCacheInvalidation: true
