@@ -9,7 +9,7 @@
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk",
-    "dev": "npx serverless offline start"
+    "dev": "AWS_PROFILE=personal_alex npx serverless offline start"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.152",
