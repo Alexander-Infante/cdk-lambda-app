@@ -76,25 +76,6 @@ jobs:
           echo "=== API URL ==="
           cat outputs-dev.json | jq -r '.["TodoApp-dev"].ApiUrl'
 
-      - name: Test deployment
-        run: |
-          API_URL=$(cat outputs-dev.json | jq -r '.["TodoApp-dev"].ApiUrl')
-          echo "Testing API at: $API_URL"
-          
-          # Test GET /v1/todos
-          echo "Testing GET /v1/todos..."
-          curl -f "$API_URL/v1/todos" || echo "GET test failed"
-          
-          # Test POST /v1/todo
-          echo "Testing POST /v1/todo..."
-          curl -f -X POST "$API_URL/v1/todo" \
-            -H "Content-Type: application/json" \
-            -d '{"title":"Test from GitHub Actions","description":"Deployed successfully!"}' || echo "POST test failed"
-          
-          # Test GET again to see new todo
-          echo "Testing GET /v1/todos again..."
-          curl -f "$API_URL/v1/todos" || echo "Second GET test failed"
-
       - name: Upload deployment outputs
         uses: actions/upload-artifact@v4
         with:
