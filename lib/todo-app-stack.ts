@@ -66,7 +66,7 @@ export class TodoAppStack extends cdk.Stack {
       "AuthorizerFunction",
       {
         functionName: `todo-app-${stage}-authorizer`,
-        runtime: lambda.Runtime.NODEJS_18_X,
+        runtime: lambda.Runtime.NODEJS_20_X,
         entry: path.join(__dirname, "lambdas/apiKeyAuthorizer/index.ts"),
         handler: "handler",
         environment: {
@@ -86,7 +86,7 @@ export class TodoAppStack extends cdk.Stack {
       "CreateTodoFunction",
       {
         functionName: `todo-app-${stage}-createTodo`,
-        runtime: lambda.Runtime.NODEJS_18_X,
+        runtime: lambda.Runtime.NODEJS_20_X,
         entry: path.join(__dirname, "lambdas/createTodo/index.ts"),
         handler: "handler",
         environment: lambdaEnvironment,
@@ -98,7 +98,7 @@ export class TodoAppStack extends cdk.Stack {
     // Get Todos Lambda
     const getTodosLambda = new nodejs.NodejsFunction(this, "GetTodosFunction", {
       functionName: `todo-app-${stage}-getTodos`,
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_20_X,
       entry: path.join(__dirname, "lambdas/getTodos/index.ts"),
       handler: "handler",
       environment: lambdaEnvironment,
@@ -109,7 +109,7 @@ export class TodoAppStack extends cdk.Stack {
     // Airtable Webhook Lambda
     const webhookLambda = new nodejs.NodejsFunction(this, "WebhookFunction", {
       functionName: `todo-app-${stage}-webhook`,
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_20_X,
       entry: path.join(__dirname, "lambdas/airtableWebhook/index.ts"),
       handler: "handler",
       environment: lambdaEnvironment,
