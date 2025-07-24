@@ -15,20 +15,6 @@ provider:
     AIRTABLE_BASE_ID: ${env:AIRTABLE_BASE_ID}
     AIRTABLE_TABLE_ID: ${env:AIRTABLE_TABLE_ID}
     API_KEY_SECRET_NAME: todo-app-${self:provider.stage}-api-key
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - dynamodb:*
-          Resource:
-            - "arn:aws:dynamodb:${self:provider.region}:*:table/todos-${self:provider.stage}"
-            - "arn:aws:dynamodb:${self:provider.region}:*:table/todos-${self:provider.stage}/index/*"
-        - Effect: Allow
-          Action:
-            - secretsmanager:GetSecretValue
-          Resource:
-            - "arn:aws:secretsmanager:${self:provider.region}:*:secret:todo-app-${self:provider.stage}-api-key*"
 
 plugins:
   - serverless-plugin-typescript
