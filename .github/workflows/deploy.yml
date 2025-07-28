@@ -31,6 +31,9 @@ jobs:
       - name: TypeScript compile check
         run: npm run build
 
+      - name: Run unit tests
+        run: npm test
+
       - name: CDK synth check
         run: npx cdk synth --context stage=dev
 

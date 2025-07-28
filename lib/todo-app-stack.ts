@@ -51,7 +51,7 @@ export class TodoAppStack extends cdk.Stack {
     };
 
     // Common bundling options
-    const bundlingOptions = {
+    const bundlingOptions: cdk.aws_lambda_nodejs.BundlingOptions = {
       minify: true,
       sourceMap: false,
       target: "es2020",
